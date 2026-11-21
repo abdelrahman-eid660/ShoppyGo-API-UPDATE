@@ -6,6 +6,7 @@ export * from './product.interface';
 export * from './category.interface';
 export * from './inventory.interface';
 export * from './cart.interface';
+export * from './analytics.interface';
 export * from './order.interface';
 export * from './review.interface';
 export * from './payment.interface';

@@ -2,67 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { OrderRepository, ProductVariantRepository, UserRepository } from 'src/DB/Repository';
 import { GetAnalyticsDTO, GetZeroAnalyticsDTO } from './dto';
 import { OrderStatusEnum } from 'src/common/enum';
-import { Types } from 'mongoose';
+import { IGetbrandsDemandMetrics, IGetCategoriesDemandMetrics, IGetCustomersByActivity, IGetDailySalesChartData, IGetProductsBySales, IGetSalesOverviewMetrics, IGetUsersWithZeroOrders, IGetZeroSalesProducts } from 'src/common/interface';
 
-interface IGetProductsBySales {
-  _id : Types.ObjectId
-  variantId: Types.ObjectId
-  totalQuantitySold: number
-  totalRevenue: number
-  skuSnapshot: string
-  imageSnapshot: string
-  currentPrice: number
-}
-interface IGetZeroSalesProducts {
-  _id : Types.ObjectId
-  sku: string,
-  price: number,
-  totalQuantitySold: number
-}
-interface IGetCustomersByActivity {
-  userId: Types.ObjectId,
-  totalOrdersCount: number
-  totalSpent: number
-  lastOrderDate: Date,
-  firstName: string,
-  lastName: string
-  email: string
-  phone: string
-}
-interface IGetUsersWithZeroOrders {
-  _id: Types.ObjectId,
-  createdAt: Date,
-  firstName: string,
-  lastName: string
-  email: string
-  phone: string
-}
-interface IGetSalesOverviewMetrics {
-  todayRevenue : number
-  todayOrdersCount : number
-  monthlyRevenue : number
-  monthlyOrdersCount : number
-  monthlyAOV : number
-}
-interface IGetDailySalesChartData {
-  date: string
-  sales: number
-  orders: number
-}
-interface IGetCategoriesDemandMetrics {
-  categoryId: Types.ObjectId
-  name: string
-  image : string
-  quantitySold: number
-  revenue: number
-}
-interface IGetbrandsDemandMetrics {
-  brandId: Types.ObjectId
-  name: string
-  image : string
-  quantitySold: number
-  revenue: number
-}
 @Injectable()
 export class AnalyticsService {
   constructor(
@@ -71,7 +12,7 @@ export class AnalyticsService {
     private readonly userRepository : UserRepository,
   ){}
 
-  async getProductsBySales({limit , sortType = -1} : GetAnalyticsDTO) :Promise<IGetProductsBySales[]>{
+  async getProductsBySales({limit = 5 , sortType = -1} : GetAnalyticsDTO) :Promise<IGetProductsBySales[]>{
     const results = await this.orderRepository.aggregate([
       {
         $match : {
@@ -118,7 +59,7 @@ export class AnalyticsService {
     return results
   }
 
-  async getZeroSalesProducts({limit} : GetZeroAnalyticsDTO) :Promise<IGetZeroSalesProducts[]> {
+  async getZeroSalesProducts({limit = 5} : GetZeroAnalyticsDTO) :Promise<IGetZeroSalesProducts[]> {
     const results = await this.productVariantRepository.aggregate([
       {
         $lookup: {
@@ -139,7 +80,7 @@ export class AnalyticsService {
       {
         $match: {matchedOrders: { $size: 0 }}
       },
-      { $limit: Number(limit) },
+      { $limit: limit },
       {
         $project: {
           _id: 1,
@@ -203,7 +144,7 @@ export class AnalyticsService {
     return results
   }
 
-  async getUsersWithZeroOrders({limit} : GetZeroAnalyticsDTO) : Promise<IGetUsersWithZeroOrders[]> {
+  async getUsersWithZeroOrders({limit = 5} : GetZeroAnalyticsDTO) : Promise<IGetUsersWithZeroOrders[]> {
     const results = await this.userRepository.aggregate([
       {
         $match: {deletedAt: {$exists : false}}
@@ -317,7 +258,7 @@ export class AnalyticsService {
       ]);
   }
 
-  async getCategoriesDemandMetrics({limit , sortType = -1} : GetAnalyticsDTO) : Promise<IGetCategoriesDemandMetrics[]> {
+  async getCategoriesDemandMetrics({limit = 5 , sortType = -1} : GetAnalyticsDTO) : Promise<IGetCategoriesDemandMetrics[]> {
     const [result] = await this.orderRepository.aggregate([
       {
         $match: {
@@ -368,7 +309,7 @@ export class AnalyticsService {
     return result;
   }
 
-  async getBrandsDemandMetrics({limit , sortType = -1} : GetAnalyticsDTO) : Promise<IGetbrandsDemandMetrics[]> {
+  async getBrandsDemandMetrics({limit = 5 , sortType = -1} : GetAnalyticsDTO) : Promise<IGetbrandsDemandMetrics[]> {
     const [result] = await this.orderRepository.aggregate([
       {
         $match: {

@@ -27,10 +27,11 @@ export class InventoryMovementService {
     async getInventoryMap<T extends { productVariantId: any }>({ warehouseId, items,session , type = 'approve'}:{ warehouseId: Types.ObjectId, items: T[],session?: ClientSession, type? : 'receive' | 'approve'}): Promise<Map<string, IInventory>> {
         const ids = items.map(item =>TransformToObjectId(item.productVariantId.toString()));
         const inventories = await this.InventoryRepository.find({filter: {wareHouseId : warehouseId,productVariantId: { $in: ids }},options: {session}});
+        const uniqueIds = [...new Set(ids.map(id => id.toString()))];
         if (type !== 'receive') {
-            if (inventories.length !== ids.length) {
-                throw new NotFoundException('Some product variants are not found in inventory',);
-            }            
+            if (inventories.length !== uniqueIds.length) {
+                throw new NotFoundException('Some product variants are not found in inventory');
+            }
         }
         const inventoryMap =  new Map(inventories.map(inv => [inv.productVariantId.toString(),inv]));
         return inventoryMap
@@ -83,13 +84,13 @@ export class InventoryMovementService {
             };
         }else if (type === 'confirm'){
             return {
-                updateOne: { filter: {_id: inventory._id},
+                updateOne: { filter: {_id: inventory._id , reserved: { $gte: quantity }},
                 update : {$set: {lastStockUpdate: new Date() }, $inc : {sold : quantity , reserved : -quantity , quantity : -quantity}}
                 }
             }
         }else{
             return {
-                updateOne: { filter: {_id: inventory._id},
+                updateOne: { filter: {_id: inventory._id , sold : {$gte : quantity}},
                 update : {$set: {lastStockUpdate: new Date() }, $inc : {sold : -quantity ,  availableQuantity : quantity , quantity : quantity}}
                 }
             }

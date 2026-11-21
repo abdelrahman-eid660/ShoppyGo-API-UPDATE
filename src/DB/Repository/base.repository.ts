@@ -21,16 +21,34 @@ import {
   UpdateWithAggregationPipeline,
   UpdateWriteOpResult,
 } from 'mongoose';
-import { AggregateOptions } from 'node:sqlite';
+import { AggregateOptions, PipelineStage } from 'mongoose';
 import { IPagination } from '../../common/interface';
 import { Injectable } from '@nestjs/common';
-import  mongodb  from "mongodb";
+import mongodb, { CountOptions, UpdateOptions } from 'mongodb';
 @Injectable()
 export abstract class BaseRepository<TRawDocument> {
   constructor(protected readonly model: Model<TRawDocument>) {}
-  async create({data}: {data: AnyKeys<TRawDocument>}): Promise<HydratedDocument<TRawDocument>>;
-  async create({data,options}: {data: AnyKeys<TRawDocument>[] , options?: CreateOptions;}): Promise<HydratedDocument<TRawDocument>[]>;
-  async create({data,options}: {data: AnyKeys<TRawDocument>[] | AnyKeys<TRawDocument>,options?: CreateOptions}): Promise<HydratedDocument<TRawDocument>[] | HydratedDocument<TRawDocument>> {
+  async create({
+    data,
+  }: {
+    data: AnyKeys<TRawDocument>;
+  }): Promise<HydratedDocument<TRawDocument>>;
+  async create({
+    data,
+    options,
+  }: {
+    data: AnyKeys<TRawDocument>[];
+    options?: CreateOptions;
+  }): Promise<HydratedDocument<TRawDocument>[]>;
+  async create({
+    data,
+    options,
+  }: {
+    data: AnyKeys<TRawDocument>[] | AnyKeys<TRawDocument>;
+    options?: CreateOptions;
+  }): Promise<
+    HydratedDocument<TRawDocument>[] | HydratedDocument<TRawDocument>
+  > {
     return await this.model.create(data as any, options);
   }
   async createOne({
@@ -78,6 +96,7 @@ export abstract class BaseRepository<TRawDocument> {
       populate?: PopulateOptions[];
     };
   }): Promise<FlattenMaps<TRawDocument> | null>;
+
   async findOne({
     filter,
     projection,
@@ -89,12 +108,13 @@ export abstract class BaseRepository<TRawDocument> {
   }): Promise<
     HydratedDocument<TRawDocument> | FlattenMaps<TRawDocument> | null
   > {
-    const doc = this.model.findOne(filter, projection);
-    if (options?.lean) {
-      doc.lean(options.lean);
+    const { lean, populate, ...queryOptions } = options ?? {};
+    const doc = this.model.findOne(filter, projection, queryOptions);
+    if (lean) {
+      doc.lean(lean);
     }
-    if (options?.populate) {
-      doc.populate(options.populate as PopulateOptions[]);
+    if (populate) {
+      doc.populate(populate as PopulateOptions[]);
     }
     return await doc.exec();
   }
@@ -146,39 +166,46 @@ export abstract class BaseRepository<TRawDocument> {
     filter,
     projection,
     options = {},
-    page = undefined,
+    page = 1,
     limit = 5,
     sort,
   }: {
     filter?: QueryFilter<TRawDocument>;
     projection?: ProjectionType<TRawDocument>;
-    options?: QueryOptions; // يفضل جعلها اختياري بـ ?
-    page?: number | undefined;
-    limit?: number | undefined;
+    options?: QueryOptions;
+    page?: number;
+    limit?: number;
     sort?: any;
   }): Promise<IPagination<TRawDocument>> {
-    // 1. تحويل القيم لأرقام صريحة والتعامل مع الـ undefined أو الأرقام السلبية
-    const numericPage = Number(page) > 0 ? Number(page) : 1;
-    const numericLimit = Number(limit) > 0 ? Number(limit) : 5;
+    const numericPage =
+      Number.isFinite(Number(page)) && Number(page) > 0
+        ? Math.floor(Number(page))
+        : 1;
 
-    // 2. حساب الـ skip وتعديل الـ options
+    const numericLimit =
+      Number.isFinite(Number(limit)) && Number(limit) > 0
+        ? Math.floor(Number(limit))
+        : 5;
+
     const skip = (numericPage - 1) * numericLimit;
-    options.skip = skip;
-    options.limit = numericLimit;
-    options.sort = sort;
 
-    // 3. جلب العدد الإجمالي (استخدمنا estimatedDocumentCount لو الفلتر فاضي للأداء، أو countDocuments لو فيه فلتر)
-    const isFilterEmpty = !filter || Object.keys(filter).length === 0;
-    const totalDocs = isFilterEmpty
-      ? await this.model.estimatedDocumentCount()
-      : await this.model.countDocuments(filter);
+    const queryOptions = {
+      ...options,
+      skip,
+      limit: numericLimit,
+      ...(sort !== undefined ? { sort } : {}),
+    };
+
+    const queryFilter = filter ?? {};
+
+    const totalDocs = await this.model.countDocuments(queryFilter, {
+      session: options.session ?? undefined,
+    });
 
     const totalPages = Math.ceil(totalDocs / numericLimit);
 
-    // 4. جلب البيانات من الداتابيز
-    const docs = await this.model.find(filter || {}, projection, options);
+    const docs = await this.model.find(queryFilter, projection, queryOptions);
 
-    // 5. الـ Return المقفل تماماً بدون أي تايب إيرور
     return {
       docs,
       pagination: {
@@ -191,19 +218,26 @@ export abstract class BaseRepository<TRawDocument> {
       },
     };
   }
-  async softDeleteChildren(parentId: Types.ObjectId) {
-    await this.model.updateMany(
+
+  async softDeleteChildren(parentId: Types.ObjectId, options?: UpdateOptions) {
+    return this.model.updateMany(
       { parentId },
-      { $set: { deletedAt: new Date() } }
+      { $set: { deletedAt: new Date() } },
+      options
     );
   }
-  async restoreChildren(parentId: Types.ObjectId) {
-    await this.model.updateMany({ parentId }, { $unset: { deletedAt: 1 } });
-  }
-  async HardDeleteChildren(parentId: Types.ObjectId) {
-    await this.model.deleteMany(
+  async restoreChildren(parentId: Types.ObjectId, options?: UpdateOptions) {
+    return await this.model.updateMany(
       { parentId },
+      { $unset: { deletedAt: 1 } },
+      options
     );
+  }
+  async HardDeleteChildren(
+    parentId: Types.ObjectId,
+    options?: mongodb.DeleteOptions & MongooseBaseQueryOptions<TRawDocument>
+  ) {
+    return await this.model.deleteMany({ parentId }, options);
   }
   async updateOne({
     filter = {},
@@ -215,32 +249,73 @@ export abstract class BaseRepository<TRawDocument> {
     options?: MongooseUpdateQueryOptions<TRawDocument> | null;
   }): Promise<UpdateWriteOpResult> {
     if (Array.isArray(update)) {
-      update.push({ $set: { __v: { $add: ['$__v', 1] } } });
-      return await this.model.updateOne(filter, update, {
+      const pipeline = [
+        ...update,
+        {
+          $set: {
+            __v: {
+              $add: [{ $ifNull: ['$__v', 0] }, 1],
+            },
+          },
+        },
+      ];
+
+      return await this.model.updateOne(filter, pipeline, {
         ...options,
         updatePipeline: true,
       });
     }
-    return await this.model.updateOne(
-      filter,
-      { ...update, $inc: { __v: 1 } },
-      options
-    );
+
+    const updateData = {
+      ...update,
+      $inc: {
+        ...(update.$inc ?? {}),
+        __v: 1,
+      },
+    };
+
+    return await this.model.updateOne(filter, updateData, options);
   }
   async updateMany({
     filter = {},
     update,
-    options = {returnDocument : "after"},
+    options = { returnDocument: 'after' },
   }: {
     filter: QueryFilter<TRawDocument>;
     update: UpdateQuery<TRawDocument> | UpdateWithAggregationPipeline;
-    options?: MongooseUpdateQueryOptions<TRawDocument>& {returnDocument?: 'before' | 'after'} & {session? : ClientSession} | null;
+    options?:
+      | (MongooseUpdateQueryOptions<TRawDocument> & {
+          returnDocument?: 'before' | 'after';
+        } & { session?: ClientSession })
+      | null;
   }): Promise<UpdateWriteOpResult> {
-    return await this.model.updateMany(
-      filter,
-      { ...update, $inc: { __v: 1 } },
-      options
-    );
+    if (Array.isArray(update)) {
+      const pipeline = [
+        ...update,
+        {
+          $set: {
+            __v: {
+              $add: [{ $ifNull: ['$__v', 0] }, 1],
+            },
+          },
+        },
+      ];
+
+      return await this.model.updateMany(filter, pipeline, {
+        ...options,
+        updatePipeline: true,
+      });
+    }
+
+    const updateData = {
+      ...update,
+      $inc: {
+        ...(update.$inc ?? {}),
+        __v: 1,
+      },
+    };
+
+    return await this.model.updateMany(filter, updateData, options);
   }
   async findOneAndUpdate({
     filter = {},
@@ -282,19 +357,25 @@ export abstract class BaseRepository<TRawDocument> {
   }
   async deleteOne({
     filter = {},
+    options,
   }: {
     filter: QueryFilter<TRawDocument>;
+    options?: mongodb.DeleteOptions & MongooseBaseQueryOptions<TRawDocument>;
   }): Promise<DeleteResult> {
-    return await this.model.deleteOne(filter);
+    return await this.model.deleteOne(filter, options);
   }
   async deleteMany({
     filter = {},
-    options = {}
+    options = {},
   }: {
-    filter: QueryFilter<TRawDocument>,
-    options? :  (mongodb.DeleteOptions & MongooseBaseQueryOptions<TRawDocument>) & {session? : ClientSession} | null
+    filter: QueryFilter<TRawDocument>;
+    options?:
+      | ((mongodb.DeleteOptions & MongooseBaseQueryOptions<TRawDocument>) & {
+          session?: ClientSession;
+        })
+      | null;
   }): Promise<DeleteResult> {
-    return await this.model.deleteMany(filter , options);
+    return await this.model.deleteMany(filter, options);
   }
   async findOneAndDelete({
     filter = {},
@@ -315,65 +396,42 @@ export abstract class BaseRepository<TRawDocument> {
     return await this.model.findByIdAndDelete(_id, options);
   }
   async aggregate(
-    pipeline: any[],
-    options?: Partial<AggregateOptions> & { allowDeleted: boolean }
+    pipeline: PipelineStage[],
+    options?: AggregateOptions & { allowDeleted?: boolean }
   ) {
-    const Pipeline = pipeline.length ? pipeline : [{ $match: {} }];
-    return this.model.aggregate(Pipeline, options);
+    return this.model.aggregate(pipeline, options);
   }
-  async countDocuments({
-    filter,
-    options,
-  }: {
-    filter?: QueryFilter<TRawDocument>;
-    options?: QueryOptions<TRawDocument>;
-  }): Promise<
-    QueryWithHelpers<
-      number,
-      HydratedDocument<TRawDocument>,
-      TRawDocument,
-      'countDocuments'
-    >
-  >;
-  async countDocuments({
-    filter,
-    options,
-  }: {
-    filter?: QueryFilter<TRawDocument>;
-    options?: QueryOptions<TRawDocument>;
-  }): Promise<
-    QueryWithHelpers<
-      number,
-      HydratedDocument<TRawDocument>,
-      TRawDocument,
-      'countDocuments'
-    >
-  >;
+
   async countDocuments({
     filter = {},
     options,
   }: {
-    filter?: QueryFilter<TRawDocument> | undefined;
-    options?: QueryOptions<TRawDocument>;
-  }): Promise<
-    | number
-    | QueryWithHelpers<
-        number,
-        HydratedDocument<TRawDocument>,
-        TRawDocument,
-        'countDocuments'
-      >
-  > {
-    return await this.model.countDocuments(filter, options as any);
+    filter?: QueryFilter<TRawDocument>;
+    options?: Omit<QueryOptions<TRawDocument>, 'session'> & {
+      session?: mongodb.ClientSession;
+    };
+  }): Promise<number> {
+    return this.model.countDocuments(filter, options).exec();
   }
   async bulkWrite<DocContents = TRawDocument>(
-    writes: Array<AnyBulkWriteOperation<DocContents extends mongodb.Document ? DocContents : any>>,
-    options: mongodb.BulkWriteOptions & MongooseBulkWriteOptions & { ordered: boolean }
-    ): Promise<mongodb.BulkWriteResult & { mongoose?: { validationErrors: Error[] } }>;
+    writes: Array<
+      AnyBulkWriteOperation<
+        DocContents extends mongodb.Document ? DocContents : any
+      >
+    >,
+    options: mongodb.BulkWriteOptions &
+      MongooseBulkWriteOptions & { ordered: boolean }
+  ): Promise<
+    mongodb.BulkWriteResult & { mongoose?: { validationErrors: Error[] } }
+  >;
   async bulkWrite<DocContents = TRawDocument>(
-        writes: Array<AnyBulkWriteOperation<DocContents extends mongodb.Document ? DocContents : any>>,
-        options?: mongodb.BulkWriteOptions & MongooseBulkWriteOptions
-      ): Promise<mongodb.BulkWriteResult>{
-        return await this.model.bulkWrite(writes , options)
-      }
+    writes: Array<
+      AnyBulkWriteOperation<
+        DocContents extends mongodb.Document ? DocContents : any
+      >
+    >,
+    options?: mongodb.BulkWriteOptions & MongooseBulkWriteOptions
+  ): Promise<mongodb.BulkWriteResult> {
+    return await this.model.bulkWrite(writes, options);
+  }
 }
