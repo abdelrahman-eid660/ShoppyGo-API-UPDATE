@@ -26,3 +26,4 @@ export * from './currencyRate.repository';
 export * from './settings.repository';
 export * from './review.repository';
 export * from './stockAlert.repository';
+export * from './baseCurrencyHistory.repository';

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
 import { ConfigService } from '@nestjs/config';
-import { SettingsRepository } from './../../DB/Repository';
+import { SettingsRepository , BaseCurrencyHistoryRepository } from './../../DB/Repository';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { HUserDocument } from 'src/DB/models';
 import { AddSubCurrencyDTO, ChangeBaseCurrencyDTO, ChangeLogoDTO, ChangeProjectNameDTO, ChangeReturnPolicyDaysDTO, RemoveSubCurrencyDTO } from './dto';

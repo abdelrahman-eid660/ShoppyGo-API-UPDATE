@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import { ISupplier } from './supplier.interface';
-import {SharedCurrencyEnum, PurchaseProcessStatusEnum } from '../enum';
+import { SharedCurrencyEnum, PurchaseProcessStatusEnum } from '../enum';
 import { IUser } from './user.interface';
 import { IWareHouse } from './warehouse.interface';
 import { IProductVariant } from './product.interface';
@@ -11,8 +11,12 @@ export class IPurchaseItems {
   remainingQuantity!: number;
   receivedQuantity!: number;
   costPrice!: number;
-  skuSnapshot! : string;
-  currencySnapshot! : SharedCurrencyEnum
+  skuSnapshot!: string;
+  currencySnapshot!: SharedCurrencyEnum;
+  
+  exchangeRateSnapshot?: Types.Decimal128;
+  unitCostInBaseCurrencySnapshot?: Types.Decimal128;
+  baseCurrencySnapshot?: SharedCurrencyEnum;
 }
 export interface IPurchaseProducts {
   _id: Types.ObjectId;
@@ -22,9 +26,9 @@ export interface IPurchaseProducts {
   createdBy: Types.ObjectId | IUser;
   updatedBy: Types.ObjectId | IUser;
 
-  items:IPurchaseItems[]
+  items: IPurchaseItems[];
 
-  supplierNameSnapshot: string
+  supplierNameSnapshot: string;
 
   totalCost: number;
   status: PurchaseProcessStatusEnum;

@@ -58,6 +58,12 @@ export class Inventory implements Partial<IInventory>{
     updatedAt!: Date;
 }
 export const InventorySchema = SchemaFactory.createForClass(Inventory)
+
+InventorySchema.index(
+  { wareHouseId: 1, productVariantId: 1 },
+  { unique: true },
+);
+
 export const InventoryModel = MongooseModule.forFeatureAsync([
     {
         name : Inventory.name,

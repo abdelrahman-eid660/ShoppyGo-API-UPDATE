@@ -20,8 +20,15 @@ export class PurchaseItems implements IPurchaseItems {
     remainingQuantity! : number
     @Prop({type  :String , enum : SharedCurrencyEnum , required : true})
     currencySnapshot! : SharedCurrencyEnum
+    @Prop({type : Types.Decimal128})
+    exchangeRateSnapshot?: Types.Decimal128;
+    @Prop({type : Types.Decimal128})
+    unitCostInBaseCurrencySnapshot?: Types.Decimal128;
+    @Prop({ type : String, enum : SharedCurrencyEnum})
+    baseCurrencySnapshot?: SharedCurrencyEnum;
 }
 export const PruchaseItemsSchema = SchemaFactory.createForClass(PurchaseItems)
+
 @Schema({
     timestamps: true,
     toJSON: { virtuals: true },

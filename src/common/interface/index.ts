@@ -28,3 +28,5 @@ export * from './wishlist.interface';
 export * from './financialReview.interface';
 export * from './currencyRate.interface';
 export * from './settings.interface';
+export * from './product_variant_cost.interface';
+export * from './baseCurrencyHistory.interface';

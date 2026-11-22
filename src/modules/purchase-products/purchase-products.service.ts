@@ -104,15 +104,27 @@ export class PurchaseProductsService {
       }
       const settings = await this.settingsRepository.findOne({ filter: {}, options: { session } });
       if (!settings) throw new NotFoundException(`System settings not found`);
+      const updatedItems : IPurchaseItems[] = []
       let totalCost : number = 0
       for (const item of purchaseProductsExists.items) {
+        const currencyRate = item.currencySnapshot === settings.baseCurrency ? 1 : settings.currencies?.find(c => c.code === item.currencySnapshot)?.exchangeRate
+        if (currencyRate === undefined || currencyRate <= 0) {
+          throw new NotFoundException(`Exchange rate not found for currency ${item.currencySnapshot}`)
+        }
         const unitCostInBase = convertAmountToBaseCurrency(item.costPrice , item.currencySnapshot , settings)
         totalCost += unitCostInBase * item.orderedQuantity
+        const plainItem = typeof (item as any).toObject === 'function' ? (item as any).toObject() : item;
+        updatedItems.push({...plainItem , 
+          exchangeRateSnapshot : Types.Decimal128.fromString(currencyRate.toString()) ,
+          unitCostInBaseCurrencySnapshot : Types.Decimal128.fromString(unitCostInBase.toString()) ,
+          baseCurrencySnapshot : settings.baseCurrency
+        })
       }
       totalCost = Number(totalCost.toFixed(2))
+      console.log({updatedItems});
       const confirmProcess = await this.purchaseProductsRepository.findOneAndUpdate({
         filter: { _id: purchaseProductId, status: PurchaseProcessStatusEnum.PENDING },
-        update: { status: PurchaseProcessStatusEnum.ORDERED , totalCost }, options: { session , returnDocument : "after" }});
+        update: { status: PurchaseProcessStatusEnum.ORDERED , totalCost , items : updatedItems }, options: { session , returnDocument : "after" }});
       if (!confirmProcess) {
         throw new NotFoundException("Fail to confirm this process");
       }
