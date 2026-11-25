@@ -3,13 +3,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { HUserDocument } from 'src/DB/models';
 import {  Types } from 'mongoose';
-import { WareHouseRepository , ProductVariantRepository , FinancialReviewRepository , SettingsRepository, PurchaseProductsRepository , InventoryRepository , ProductSupplierRepository  , SupplierRepository, InventoryMovementRepository } from 'src/DB/Repository';
+import { WareHouseRepository  , ProductVariantRepository , FinancialReviewRepository , SettingsRepository, PurchaseProductsRepository , InventoryRepository , ProductSupplierRepository  , SupplierRepository, InventoryMovementRepository } from 'src/DB/Repository';
 import {IFinancialReview, IInventoryMovement, IPagination, IPurchaseItems, IPurchaseProducts } from 'src/common/interface';
 import { TransformToObjectId } from 'src/common/utils/ObjectId';
 import { PurchaseProductSortEnum, SortEnum, PurchaseProcessStatusEnum, ReferenceModelEnum, InventoryMovementType, LogActionEnum, FinancialCategoryEnum, FinancialSourceEnum } from 'src/common/enum';
 import { AllPurchaseProcess , CreatePurchaseProductDto , PruchaseItemsDTO , ReceivedDTO, UpdatePurchaseProductDto } from './dto';
 import { DatabaseService } from 'src/DB/service/database.service';
-import { AdjustStockService, InventoryMovementService } from 'src/common/service';
+import { AdjustStockService, InventoryMovementService, ProductCostService } from 'src/common/service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { convertAmountToBaseCurrency } from 'src/common/utils/convert-currency';
 
@@ -20,6 +20,7 @@ export class PurchaseProductsService {
       private readonly purchaseProductsRepository : PurchaseProductsRepository,
       private readonly productSupplierRepository : ProductSupplierRepository,
       private readonly inventoryRepository : InventoryRepository,
+      private readonly ProductCostService  : ProductCostService,
       private readonly dataBaseService : DatabaseService,   
       private readonly inventoryMovementService : InventoryMovementService,  
       private readonly inventoryMovementRepository : InventoryMovementRepository,  

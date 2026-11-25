@@ -6,6 +6,7 @@ import {
   InventoryModel,
   InventoryMovementModel,
   ProductSupplierModel,
+  ProductVariantCostModel,
   PurchaseProductsModel,
   SettingsModel,
   SupplierModel,
@@ -20,10 +21,15 @@ import {
   SettingsRepository,
   SupplierRepository,
   WareHouseRepository,
+  ProductVariantCostRepository,
 } from 'src/DB/Repository';
 import { SharedAuthenticationModule } from 'src/common/modules';
 import { DataBaseModule } from 'src/DB/service';
-import { AdjustStockService, InventoryMovementService } from 'src/common/service';
+import {
+  AdjustStockService,
+  InventoryMovementService,
+  ProductCostService,
+} from 'src/common/service';
 import { PurchaseProductsResolver } from './purchase-products.resolver';
 
 @Module({
@@ -37,6 +43,7 @@ import { PurchaseProductsResolver } from './purchase-products.resolver';
     ProductSupplierModel,
     FinancialReviewModel,
     SettingsModel,
+    ProductVariantCostModel,
     DataBaseModule,
   ],
   controllers: [PurchaseProductsController],
@@ -51,9 +58,11 @@ import { PurchaseProductsResolver } from './purchase-products.resolver';
     InventoryMovementService,
     SettingsRepository,
     FinancialReviewRepository,
+    ProductVariantCostRepository,
     AdjustStockService,
-    PurchaseProductsResolver
+    ProductCostService,
+    PurchaseProductsResolver,
   ],
-  exports:[PurchaseProductsService]
+  exports: [PurchaseProductsService],
 })
 export class PurchaseProductsModule {}

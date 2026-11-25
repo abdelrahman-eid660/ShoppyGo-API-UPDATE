@@ -10,5 +10,5 @@ export const convertAmountToBaseCurrency = (amount: number, currency: SharedCurr
       `System does not support exchange rate for currency: ${currency}`,
     );
   }
-  return amount / rate.exchangeRate;
+  return amount * rate.exchangeRate;
 }

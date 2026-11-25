@@ -27,3 +27,4 @@ export * from './settings.repository';
 export * from './review.repository';
 export * from './stockAlert.repository';
 export * from './baseCurrencyHistory.repository';
+export * from './productVariantCost.repository';

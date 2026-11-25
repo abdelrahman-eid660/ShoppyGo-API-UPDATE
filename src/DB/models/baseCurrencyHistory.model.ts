@@ -3,14 +3,9 @@ import { HydratedDocument, Types } from 'mongoose';
 import { SharedCurrencyEnum } from 'src/common/enum';
 import { IBaseCurrencyHistory } from 'src/common/interface';
 
-export type HBaseCurrencyHistoryDocument =
-  HydratedDocument<IBaseCurrencyHistory>;
-
+export type HBaseCurrencyHistoryDocument = HydratedDocument<IBaseCurrencyHistory>;
 @Schema({
-  timestamps: {
-    createdAt: true,
-    updatedAt: false,
-  },
+  timestamps: true,
   strict: true,
   strictQuery: true,
 })

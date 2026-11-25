@@ -10,3 +10,4 @@ export * from './inventory-movement.service';
 export * from './settings/settings.service';
 export * from './payment.service';
 export * from './product-variant.service';
+export * from './productCost.service';

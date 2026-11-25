@@ -239,43 +239,21 @@ export abstract class BaseRepository<TRawDocument> {
   ) {
     return await this.model.deleteMany({ parentId }, options);
   }
-  async updateOne({
-    filter = {},
-    update,
-    options,
-  }: {
-    filter: QueryFilter<HydratedDocument<TRawDocument>>;
-    update: UpdateQuery<TRawDocument> | UpdateWithAggregationPipeline;
-    options?: MongooseUpdateQueryOptions<TRawDocument> | null;
-  }): Promise<UpdateWriteOpResult> {
+  async updateOne({ filter = {}, update, options}: {filter: QueryFilter<HydratedDocument<TRawDocument>> , update: UpdateQuery<TRawDocument> | UpdateWithAggregationPipeline , options?: UpdateOptions | null}): Promise<UpdateWriteOpResult> {
     if (Array.isArray(update)) {
-      const pipeline = [
-        ...update,
+      const pipeline = [...update,
         {
           $set: {
-            __v: {
-              $add: [{ $ifNull: ['$__v', 0] }, 1],
-            },
+            __v: { $add: [{ $ifNull: ['$__v', 0] }, 1]},
           },
         },
       ];
-
-      return await this.model.updateOne(filter, pipeline, {
-        ...options,
-        updatePipeline: true,
-      });
+      return await this.model.updateOne(filter, pipeline, {...options,updatePipeline: true});
     }
-
-    const updateData = {
-      ...update,
-      $inc: {
-        ...(update.$inc ?? {}),
-        __v: 1,
-      },
-    };
-
+    const updateData = {...update, $inc: {...(update.$inc ?? {}),__v: 1}};
     return await this.model.updateOne(filter, updateData, options);
   }
+
   async updateMany({
     filter = {},
     update,
