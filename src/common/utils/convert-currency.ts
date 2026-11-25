@@ -1,14 +1,16 @@
-import { NotFoundException } from "@nestjs/common";
-import { ISettings } from "../interface";
+/* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
+import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { ICurrencyItem, ISettings } from "../interface";
 import { SharedCurrencyEnum } from "../enum";
 
-export const convertAmountToBaseCurrency = (amount: number, currency: SharedCurrencyEnum,settings: ISettings): number =>  {
-  if (settings.baseCurrency === currency) return amount;
-  const rate = settings.currencies?.find((c: any) => c.code === currency);
-  if (!rate || rate.exchangeRate <= 0) {
-    throw new NotFoundException(
-      `System does not support exchange rate for currency: ${currency}`,
-    );
+
+export const convertAmountToBaseCurrency = (amount: number,currency: SharedCurrencyEnum,settings: ISettings): number => {
+  if (settings.baseCurrency === currency) {
+    return amount;
   }
-  return amount * rate.exchangeRate;
-}
+  const currencyRate = settings.currencies?.find((item : ICurrencyItem) => item.code === currency);
+  if (!currencyRate ||!Number(currencyRate.exchangeRate) ||currencyRate.exchangeRate <= 0) {
+    throw new NotFoundException(`Exchange rate not found for currency ${currency}`);
+  }
+  return amount * currencyRate.exchangeRate;
+};
